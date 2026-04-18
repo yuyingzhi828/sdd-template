@@ -1,0 +1,60 @@
+name: SDD Governance Check
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  sdd-check:
+    name: Architecture & Lock Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need full history for diff-based lock-check
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run arch-check
+        run: |
+          echo "🏗️  Running architecture layer check..."
+          python3 governance/arch-check.py
+          echo "✅ arch-check passed"
+
+      - name: Run lock-check on changed files
+        run: |
+          echo "🔒 Running lock-check on changed files..."
+
+          # On PR: compare against base branch
+          # On push: compare against previous commit
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=${{ github.event.pull_request.base.sha }}
+          else
+            BASE=${{ github.event.before }}
+          fi
+
+          # Fallback: if BASE is all zeros (first push), skip diff check
+          if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "ℹ️  First push to branch, skipping diff-based lock-check"
+            exit 0
+          fi
+
+          git diff --name-only "$BASE" HEAD | python3 governance/lock-check.py
+          echo "✅ lock-check passed"
+
+      - name: Check governance script syntax
+        run: |
+          echo "🐍 Checking governance scripts compile cleanly..."
+          python3 -m py_compile governance/propose.py
+          python3 -m py_compile governance/impact.py
+          python3 -m py_compile governance/apply-and-archive.py
+          python3 -m py_compile governance/arch-check.py
+          python3 -m py_compile governance/lock-check.py
+          echo "✅ All scripts compile"
