@@ -1,7 +1,12 @@
 # SDD 通用项目模板
 
-**Spec-Driven Development（规格驱动开发）** 模板仓库。  
-把「写什么、怎么验收、谁能改什么」全部变成可追踪、可检查的文件，让 AI 辅助开发有据可查、不失控。
+> **在 AI 自动生成代码的时代，自然语言就是新的编程语言。**  
+> 设计文档不再只是给人看的——它是喂给 AI 的「超级提示词（System Prompt）」。  
+> AI 写出垃圾代码，99% 的原因是上下文不清晰、约束不到位。  
+> 本模板通过结构化的规格文件、锁定机制和 governance 脚本，把 AI 锁在明确的边界里干活。
+
+**Spec-Driven Development（规格驱动开发）** 模板仓库——为 AI 辅助开发时代设计。  
+把「写什么、怎么验收、谁能改什么」全部变成可追踪、可检查的文件，消除 AI 代码幻觉，杜绝垃圾代码生成。
 
 ---
 
@@ -147,6 +152,8 @@ chmod +x .git/hooks/pre-commit
 2. `specs/{project-id}/RFC.md` — 了解需求全貌
 3. `specs/{project-id}/LOCK.md` — 了解哪些文件不能动
 4. 对应的 `TK-NNN.md` — 了解本次任务的具体范围
+
+如果使用 **Cursor / GitHub Copilot / Claude Code**，把 `.cursorrules` 复制到项目根目录——AI 助手会自动读取并遵守所有约束，无需每次手动提示。
 
 ---
 
