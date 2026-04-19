@@ -147,6 +147,11 @@ Tasks 层 (tasks/)
 ❌ 禁止私自修改已锁定的数据模型字段
    → 数据库 Schema 变更必须走 propose → delta → apply 变更流程
    → 已锁定文件(见 LOCK.md)的修改需要解锁申请
+
+❌ 禁止写出"假绿勾"脚本
+   → 任何返回"通过/成功"状态的脚本,必须真的做了检查
+   → 必须有反证测试:构造一个"该失败"的场景,验证脚本真的会失败
+   → 默认通过的脚本等于没有脚本
 ```
 
 ### AI 专项禁令
@@ -201,6 +206,7 @@ Tasks 层 (tasks/)
 - **严格遵守用户的分步指令**:如果用户说"写完 X 让我看一眼再继续",即便下一步再明显,也必须停下来等用户确认。**不得合并多步一次性完成**
 - **修改任何文件前,必须先确认该文件的 LOCK 状态**:读 LOCK.md,确认不在锁定列表中,或已有对应的解锁批准
 - **执行任何脚本前,必须先用 `-h` 或阅读源码确认参数**:不得凭猜测传参
+- **跨环境协作前必须同步**:任何涉及刚修改文件的操作前,必须先 `git status` + `git pull`,确认本地与远端一致。否则基于旧文件做的所有判断都不可信
 - **遇到工具/脚本报错时,必须如实完整汇报错误信息**:不得擅自修复、绕过或隐瞒
 - **发现模板/脚本/配置之间存在不一致时,必须先报告,由人类决策如何处理**:AI 不得自行修复元基础设施
 - **不确定时必须停下来问**:不得凭"大概意思"推进。宁可多问一轮,也不要猜错一次
@@ -239,11 +245,19 @@ Tasks 层 (tasks/)
 
 **这就是为什么元基础设施的变更,哪怕"看起来是改进",也必须走慢流程。**
 
-### 元基础设施变更的六步流程
+### 识别一次变更是否属于元基础设施变更
 
-1. **发起 CH 提议**——不能直接改文件,必须先开 CH
-2. **CH 命名使用 `CH-META-xxx` 前缀**——例如 `CH-META-001-refactor-delta-syntax`,与业务 CH 区别开
-3. **proposal.md 必须明确回答三件事**:
+不依赖命名前缀,**按以下三个事实判断**,只要满足任意一条,本次变更就属于元基础设施变更:
+
+1. **修改的文件路径**在"元基础设施定义"中列出的目录下
+2. **proposal.md 的"变更类型"字段**标注为"元基础设施变更"
+3. **修改影响的是未来项目初始化行为**,不是当前项目的运行行为
+
+### 元基础设施变更必须遵守的流程
+
+1. **使用标准 CH 命名**(`CH-NNN`),不需要特殊前缀
+2. **proposal.md 的"变更类型"字段必须明确标注为"元基础设施变更"**
+3. **proposal.md 必须回答三件事**:
    - 这次修改影响哪些下游项目(已存在的 + 未来新建的)
    - 是否需要为已存在的下游项目做迁移工作
    - 如果事后发现问题,如何回滚
@@ -255,16 +269,17 @@ Tasks 层 (tasks/)
 
 在 `LOCK.md` 中显式登记元基础设施文件,例如:
 
-```
-[LOCK-META-001] governance/propose.py
-[LOCK-META-002] governance/impact.py
-[LOCK-META-003] governance/apply-and-archive.py
-[LOCK-META-004] templates/delta.template.md
-[LOCK-META-005] templates/proposal.template.md
-[LOCK-META-006] CONSTITUTION.md
+```markdown
+| 锁定ID | 文件路径 | 锁定原因 | 锁定时间 | 对应 Sprint | 解锁需要 |
+|--------|---------|---------|---------|------------|---------|
+| LOCK-META-001 | `governance/propose.py` | 元基础设施 | YYYY-MM-DD | 长期 | 人类审批 |
+| LOCK-META-002 | `governance/impact.py` | 元基础设施 | YYYY-MM-DD | 长期 | 人类审批 |
+| LOCK-META-003 | `templates/delta.template.md` | 元基础设施 | YYYY-MM-DD | 长期 | 人类审批 |
 ```
 
-这样 `lock-check.py` 会在 pre-commit 阶段自动拦截对这些文件的直接修改,强制走 CH-META 流程。
+注意:这里的 `LOCK-META-xxx` 只是**锁定条目的 ID**,用于标识"这是一条保护元基础设施的锁定记录",**不影响 CH 的命名**。CH 还是用标准的 `CH-NNN`。
+
+这样 `lock-check.py` 会在 pre-commit 阶段自动拦截对这些文件的直接修改,强制走元基础设施变更流程。
 
 ---
 
@@ -317,13 +332,11 @@ type:
   test     - 测试相关
   docs     - 文档修改
   chore    - 构建/工具链
-  meta     - 元基础设施修改(必须对应 CH-META-xxx)
 
 示例:
   feat(user): add email verification on registration
   fix(api): return 409 when duplicate email detected
   docs(constitution): add AI usage constraints
-  meta(template): fix delta template OP block syntax (CH-META-003)
 ```
 
 ---
@@ -335,4 +348,5 @@ type:
 | 日期 | 修改人 | 修改内容 |
 |------|--------|---------|
 | YYYY-MM-DD | <姓名> | 初始化 |
-| YYYY-MM-DD | <姓名> | 新增「元基础设施定义」「AI 必须做的事」「元基础设施变更规则」三节(CH-META-001) |
+| YYYY-MM-DD | <姓名> | 新增「元基础设施定义」「AI 必须做的事(流程纪律)」「元基础设施变更规则」三节 |
+| YYYY-MM-DD | <姓名> | 简化「元基础设施变更规则」:取消 CH-META 前缀要求,改用"变更类型"字段识别;新增"跨环境协作前必须同步"流程纪律;新增"禁止写出假绿勾脚本"红线 |
